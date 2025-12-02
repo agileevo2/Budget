@@ -539,6 +539,7 @@
                     let demandNext2M = Array(12).fill(0);
 
                     for (let m = 0; m < 12; m++) {
+                        // ADDED FIX: Check if order placed in m-1 (arrives in m+1) to avoid double ordering
                         const arriving = (m >= 2) ? purchases[m-2] : 0;
                         currentStock += arriving;
 
@@ -555,8 +556,11 @@
                         const demandNext2 = (m < 10) && monthlyUnitsByBaseId[item.id] ? monthlyUnitsByBaseId[item.id][m+2] : 0;
                         demandNext2M[m] = demandNext + demandNext2;
 
-                        if ((currentStock - demandNext) < demandNext2) {
-                            const projectedShortfall = (demandNext + demandNext2) - currentStock;
+                        // Pending arrival check for ordering decision
+                        const pendingArrival = (m > 0) ? purchases[m-1] : 0;
+
+                        if ((currentStock + pendingArrival - demandNext) < demandNext2) {
+                            const projectedShortfall = (demandNext + demandNext2) - (currentStock + pendingArrival);
                             const batchSize = Math.max(10, projectedShortfall + 10);
                             
                             purchases[m] = batchSize;
@@ -915,7 +919,7 @@
                         ))}
                     </nav>
 
-                    <main className="w-full p-4 md:p-6 space-y-6 md:space-y-8">
+                    <main className="max-w-7xl mx-auto p-6 space-y-8">
                         {activeTab === 'intro' && (
                             <div className="space-y-8 max-w-5xl mx-auto">
                                 <div className="text-center space-y-4 mb-8">

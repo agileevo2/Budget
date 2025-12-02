@@ -915,7 +915,7 @@
                         ))}
                     </nav>
 
-                    <main className="max-w-7xl mx-auto p-6 space-y-8">
+                    <main className="w-full p-4 md:p-6 space-y-6 md:space-y-8">
                         {activeTab === 'intro' && (
                             <div className="space-y-8 max-w-5xl mx-auto">
                                 <div className="text-center space-y-4 mb-8">
@@ -1542,7 +1542,7 @@
                                                     value={item.initialStock} 
                                                     onChange={(e) => handleStockChange(item.id, e.target.value)}
                                                     onWheel={safeInput}
-                                                    className="w-full bg-zinc-950 border border-zinc-700 rounded p-2 text-zinc-200 focus:ring-1 focus:ring-emerald-500 outline-none text-center"
+                                                    className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-zinc-200 focus:ring-1 focus:ring-emerald-500 outline-none text-center"
                                                 />
                                             </div>
                                         ))}

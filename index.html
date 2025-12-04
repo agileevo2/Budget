@@ -539,7 +539,6 @@
                     let demandNext2M = Array(12).fill(0);
 
                     for (let m = 0; m < 12; m++) {
-                        // ADDED FIX: Check if order placed in m-1 (arrives in m+1) to avoid double ordering
                         const arriving = (m >= 2) ? purchases[m-2] : 0;
                         currentStock += arriving;
 
@@ -691,6 +690,7 @@
                 let monthlyCF_Opex = Array(12).fill(0);
                 let monthlyCF_VAT = Array(12).fill(0);
                 let monthlyCF_Finance = Array(12).fill(0);
+                let monthlyTotalCosts = Array(12).fill(0);
 
                 MONTHS.forEach((_, m) => {
                     let eqIn = 0;
@@ -752,6 +752,9 @@
                     monthlyEBITDA[m] = ebitda;
                     monthlyEBT[m] = ebt;
                     monthlyFCF[m] = ebitda - (monthlyCOGSCash[m]*1.25) - monthlyPrincipal[m] - monthlyVatSettlement[m]; 
+                    
+                    // Calculate Total Costs (COGS + OPEX + Interest)
+                    monthlyTotalCosts[m] = monthlyCOGSAcc[m] + opex + monthlyInterest[m];
                 });
 
                 const totalYearEBT = monthlyEBT.reduce((acc, val) => acc + val, 0);
@@ -790,7 +793,7 @@
                             finance: monthlyCF_Finance
                         }
                     },
-                    pnl: { ebitda: monthlyEBITDA, net: monthlyNetResult, gm: monthlyGM, fcf: monthlyFCF },
+                    pnl: { ebitda: monthlyEBITDA, net: monthlyNetResult, gm: monthlyGM, fcf: monthlyFCF, totalCosts: monthlyTotalCosts },
                     alerts: { negativeStock: negativeStockEvents }
                 };
 
@@ -919,7 +922,7 @@
                         ))}
                     </nav>
 
-                    <main className="max-w-7xl mx-auto p-6 space-y-8">
+                    <main className="w-full p-4 md:p-6 space-y-6 md:space-y-8">
                         {activeTab === 'intro' && (
                             <div className="space-y-8 max-w-5xl mx-auto">
                                 <div className="text-center space-y-4 mb-8">
@@ -1546,7 +1549,7 @@
                                                     value={item.initialStock} 
                                                     onChange={(e) => handleStockChange(item.id, e.target.value)}
                                                     onWheel={safeInput}
-                                                    className="w-full bg-zinc-900 border border-zinc-700 rounded p-2 text-zinc-200 focus:ring-1 focus:ring-emerald-500 outline-none text-center"
+                                                    className="w-full bg-zinc-950 border border-zinc-700 rounded p-2 text-zinc-200 focus:ring-1 focus:ring-emerald-500 outline-none text-center"
                                                 />
                                             </div>
                                         ))}
@@ -1585,36 +1588,40 @@
                                     <h2 className="text-xl font-bold">P&L Summary 2026</h2>
                                     <button onClick={handleCSVExport} className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded text-sm font-medium transition flex items-center gap-2"><FileSpreadsheet size={16} /> Download CSV</button>
                                 </div>
-                                <div className="border border-zinc-800 rounded-xl overflow-hidden">
-                                    <table className="w-full text-sm">
-                                        <thead className="bg-zinc-900 text-zinc-400">
-                                            <tr><th className="px-6 py-4 text-left">Category</th><th className="px-6 py-4 text-right">Year Total</th><th className="px-6 py-4 text-right hidden sm:table-cell">Monthly Avg</th></tr>
+                                <div className="border border-zinc-800 rounded-xl overflow-x-auto bg-zinc-900/20">
+                                    <table className="w-full text-xs whitespace-nowrap">
+                                        <thead>
+                                            <tr className="text-zinc-500 border-b border-zinc-800">
+                                                <th className="text-left py-3 px-4 sticky left-0 bg-zinc-900 z-10">Category</th>
+                                                {MONTHS.map(m => <th key={m} className="px-4 py-3 text-right">{m}</th>)}
+                                                <th className="px-4 py-3 text-right font-bold text-zinc-300 border-l border-zinc-800">Total</th>
+                                            </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-zinc-800 bg-zinc-900/20">
-                                            <SummaryRow label="Driftsinntekter (Revenue)" values={financials.revenue.total} bold />
-                                            <SummaryRow label="Varekostnad (COGS)" values={financials.cogs.acc} neg />
-                                            <SummaryRow label="Bruttofortjeneste (Gross Profit)" values={financials.revenue.total.map((r,i) => r - financials.cogs.acc[i])} bold color="text-emerald-400" />
+                                        <tbody className="divide-y divide-zinc-800/50">
+                                            <BoardMonthRow label="Driftsinntekter (Revenue)" values={financials.revenue.total} bold />
+                                            <BoardMonthRow label="Varekostnad (COGS)" values={financials.cogs.acc} neg />
+                                            <BoardMonthRow label="Bruttofortjeneste (Gross Profit)" values={financials.revenue.total.map((r,i) => r - financials.cogs.acc[i])} bold color="text-emerald-400" />
                                             
-                                            {/* Detailed OPEX Breakdown for Board */}
-                                            <tr className="bg-zinc-900/40"><td colSpan="3" className="px-6 py-2 text-xs font-bold text-zinc-500 uppercase tracking-wider">Operating Expenses</td></tr>
-                                            <SummaryRow label="Lonnskostnader (Personnel Expenses)" values={financials.opex.staff} neg />
-                                            <SummaryRow label="Andre driftskostnader (Other OPEX)" values={financials.opex.consultants.map((c, i) => c + financials.opex.cloud[i] + financials.opex.other[i])} neg />
+                                            <tr className="bg-zinc-900/40"><td colSpan="14" className="px-6 py-2 text-xs font-bold text-zinc-500 uppercase tracking-wider">Operating Expenses</td></tr>
                                             
-                                            <SummaryRow label="Driftsresultat for avskr. (EBITDA)" values={financials.pnl.ebitda} bold highlight />
-                                            <SummaryRow label="Avskrivninger (Depreciation)" values={Array(12).fill(0)} neg muted />
-                                            <SummaryRow label="Driftsresultat (EBIT)" values={financials.pnl.ebitda} />
-                                            <SummaryRow label="Finansposter (Interest)" values={financials.finance.interest} neg />
-                                            <SummaryRow label="Resultat for skatt (EBT)" values={financials.pnl.ebitda.map((e, i) => e - financials.finance.interest[i])} />
+                                            <BoardMonthRow label="Lonnskostnader (Personnel)" values={financials.opex.staff} neg />
+                                            <BoardMonthRow label="Andre driftskostnader (Other OPEX)" values={financials.opex.consultants.map((c, i) => c + financials.opex.cloud[i] + financials.opex.other[i])} neg />
+                                            
+                                            <BoardMonthRow label="EBITDA" values={financials.pnl.ebitda} bold highlight />
+                                            <BoardMonthRow label="Avskrivninger (Depreciation)" values={Array(12).fill(0)} neg muted />
+                                            <BoardMonthRow label="Driftsresultat (EBIT)" values={financials.pnl.ebitda} />
+                                            <BoardMonthRow label="Finansposter (Interest)" values={financials.finance.interest} neg />
+                                            <BoardMonthRow label="Resultat for skatt (EBT)" values={financials.pnl.ebitda.map((e, i) => e - financials.finance.interest[i])} />
                                             
                                             {/* Tax Line */}
                                             {(() => {
                                                 const totalEBT = financials.pnl.ebitda.reduce((a,b)=>a+b,0) - financials.finance.interest.reduce((a,b)=>a+b,0);
                                                 const annualTax = totalEBT > 0 ? totalEBT * 0.22 : 0;
                                                 const taxArr = Array(12).fill(annualTax/12);
-                                                return <SummaryRow label="Skatt (Tax)" values={taxArr} neg />;
+                                                return <BoardMonthRow label="Skatt (Tax)" values={taxArr} neg />;
                                             })()}
 
-                                            <SummaryRow label="Arsresultat (Net Result)" values={financials.pnl.net} bold color="text-blue-400" />
+                                            <BoardMonthRow label="Arsresultat (Net Result)" values={financials.pnl.net} bold color="text-blue-400" />
                                         </tbody>
                                     </table>
                                 </div>
@@ -1659,6 +1666,7 @@
                                             <AnalysisRow label="Other OPEX" data={financials.opex.other} neg />
                                             <AnalysisRow label="EBITDA" data={financials.pnl.ebitda} bold highlight />
                                             <AnalysisRow label="Finance Costs" data={financials.finance.interest} neg />
+                                            <AnalysisRow label="Total Costs" data={financials.pnl.totalCosts} neg bold />
                                             <AnalysisRow label="Net Result" data={financials.pnl.net} color="text-blue-400" />
                                             <AnalysisRow label="Cash Balance" data={financials.liquidity.balance} bold />
                                         </tbody>
@@ -2000,6 +2008,25 @@
                         {neg && total > 0 ? '-' : ''}{formatNum(total)}
                     </td>
                     <td className="px-6 py-3 text-right hidden sm:table-cell text-zinc-600">{formatNum(total/12)}</td>
+                </tr>
+            );
+        }
+
+        function BoardMonthRow({ label, values, neg, bold, color, highlight, muted, indent }) {
+            const total = values.reduce((a,b)=>a+b,0);
+            return (
+                <tr className={`hover:bg-zinc-800/20 ${highlight ? 'bg-zinc-800/10' : ''}`}>
+                    <td className={`px-4 py-3 whitespace-nowrap sticky left-0 bg-zinc-950 z-10 border-r border-zinc-800 ${bold ? 'font-bold text-white' : (muted ? 'text-zinc-500' : 'text-zinc-300')} ${indent ? 'pl-8' : ''}`}>
+                        {label}
+                    </td>
+                    {values.map((v, i) => (
+                        <td key={i} className={`px-3 py-3 text-right whitespace-nowrap text-xs ${color || (muted ? 'text-zinc-600' : (neg ? 'text-rose-400' : 'text-zinc-400'))}`}>
+                            {neg && v > 0 ? '-' : ''}{formatNum(v)}
+                        </td>
+                    ))}
+                    <td className={`px-4 py-3 text-right font-bold whitespace-nowrap border-l border-zinc-800 ${color || (muted ? 'text-zinc-600' : (neg ? 'text-rose-400' : 'text-zinc-200'))}`}>
+                        {neg && total > 0 ? '-' : ''}{formatNum(total)}
+                    </td>
                 </tr>
             );
         }
